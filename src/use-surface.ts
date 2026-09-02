@@ -8,18 +8,19 @@ export function useSurface(
 ): RefObject<Surface | null> {
   const gpu = useGpu();
   const target = useRef<Surface | null>(null);
+  const optionsRef = useRef(options);
 
   useEffect(() => {
     if (!canvas.current) {
       return;
     }
-    const current = surface(gpu, canvas.current, options);
+    const current = surface(gpu, canvas.current, optionsRef.current);
     target.current = current;
     return () => {
       target.current = null;
       current.dispose();
     };
-  }, [gpu, canvas, options]);
+  }, [gpu, canvas]);
 
   return target;
 }

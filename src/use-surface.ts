@@ -1,13 +1,13 @@
-import { type RefObject, useEffect, useRef } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 import { type Surface, type SurfaceOptions, surface } from "vgpu";
 import { useGpu } from "./use-gpu";
 
 export function useSurface(
   canvas: RefObject<HTMLCanvasElement | null>,
   options?: SurfaceOptions,
-): RefObject<Surface | null> {
+): Surface | null {
   const gpu = useGpu();
-  const target = useRef<Surface | null>(null);
+  const [target, setTarget] = useState<Surface | null>(null);
   const optionsRef = useRef(options);
 
   useEffect(() => {
@@ -15,9 +15,9 @@ export function useSurface(
       return;
     }
     const current = surface(gpu, canvas.current, optionsRef.current);
-    target.current = current;
+    setTarget(current);
     return () => {
-      target.current = null;
+      setTarget((target) => (target === current ? null : target));
       current.dispose();
     };
   }, [gpu, canvas]);

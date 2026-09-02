@@ -1,6 +1,6 @@
 {
   "name": "vgpu-react",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "React bindings for vgpu",
   "license": "MIT",
   "type": "module",
@@ -10,8 +10,8 @@
   },
   "sideEffects": false,
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.build.json",
-    "check": "biome check . && tsc",
+    "build": "rm -rf dist && tsc",
+    "check": "biome check . && tsc --noEmit",
     "format": "biome format --write .",
     "prepublishOnly": "bun run check && bun run build"
   },

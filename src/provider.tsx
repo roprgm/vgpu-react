@@ -21,10 +21,11 @@ export function GpuProvider({ children }: GpuProviderProps): ReactNode {
           created.dispose();
           return;
         }
+
         instance = created;
         setGpu(created);
       },
-      (reason: unknown) => {
+      (reason) => {
         if (!cancelled) {
           setError(reason);
         }
@@ -40,7 +41,6 @@ export function GpuProvider({ children }: GpuProviderProps): ReactNode {
   if (error) {
     throw error;
   }
-
   if (!gpu) {
     return null;
   }

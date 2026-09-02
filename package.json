@@ -1,0 +1,19 @@
+{
+	"name": "vgpu-react",
+	"version": "0.1.0",
+	"description": "React bindings for vgpu",
+	"license": "MIT",
+	"type": "module",
+	"exports": {
+		".": "./src/index.tsx"
+	},
+	"files": [
+		"src/index.tsx",
+		"README.md",
+		"LICENSE"
+	],
+	"peerDependencies": {
+		"react": ">=19",
+		"vgpu": ">=0.3.0"
+	}
+}

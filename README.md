@@ -31,7 +31,7 @@ createRoot(document.getElementById("root")).render(
 );
 ```
 
-`GpuProvider` calls `init()`. `useSurface` maps your canvas ref to a vgpu surface and disposes the surface on cleanup.
+`GpuProvider` calls `init()`, renders nothing until it resolves, and rethrows a failed `init()` to the nearest error boundary. `useSurface` maps your canvas ref to a vgpu surface and disposes the surface on cleanup. Options are read once, when the surface is created. To change `clearColor` or `size` at runtime, use `target.current.clearColor` and `target.current.resize()`; for anything else, remount the canvas with a `key`.
 
 `useFrame` returns an action for on-demand rendering. Extra arguments pass through to its callback.
 

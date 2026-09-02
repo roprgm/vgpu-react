@@ -2,9 +2,13 @@
 
 React bindings for [vgpu](https://vgpu.sh).
 
+## Install
+
 ```sh
 pnpm add vgpu-react vgpu react
 ```
+
+Requires React 19, vgpu 0.3, and a browser with WebGPU support.
 
 ## Example
 
@@ -124,6 +128,10 @@ Each binding keeps the underlying vgpu call visible. React supplies context and 
 | `effect()` | `useShader()` |
 | `frame()` | `useFrame()` |
 | `frameLoop()` | `useFrameLoop()` |
+
+## Support
+
+Report bugs and request features through [GitHub Issues](https://github.com/roprgm/vgpu-react/issues).
 
 ## License
 

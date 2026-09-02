@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useLayoutEffect, useRef } from "react";
 import { type Frame, frame } from "vgpu";
 import { useGpu } from "./use-gpu";
 
@@ -7,7 +7,10 @@ export function useFrame<Args extends unknown[]>(
 ): (...args: Args) => void {
   const gpu = useGpu();
   const callbackRef = useRef(callback);
-  callbackRef.current = callback;
+
+  useLayoutEffect(() => {
+    callbackRef.current = callback;
+  });
 
   return useCallback(
     (...args) => {

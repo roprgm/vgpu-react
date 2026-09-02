@@ -41,6 +41,34 @@ export function App() {
 
 `Canvas` mounts its own `GpuProvider` when needed and waits for the target before rendering `Gradient`, so there are no providers, refs, or nullable values in the common case. If a provider already exists, `Canvas` reuses it.
 
+## Composition
+
+Every `useFrameLoop` under one `GpuProvider` runs inside a single frame loop, in mount order, so components add passes to the same frame rather than racing separate loops. A component that draws over what an earlier one drew keeps it with `clear: false`.
+
+```tsx
+function Overlay() {
+  const target = useCanvas();
+  const shader = useShader(overlay);
+
+  useFrameLoop((frame) => {
+    frame.pass({ target, clear: false }, shader);
+  });
+
+  return null;
+}
+
+export function App() {
+  return (
+    <Canvas>
+      <Gradient />
+      <Overlay />
+    </Canvas>
+  );
+}
+```
+
+The loop starts with the first subscriber and stops with the last. `<GpuProvider fps={30}>` caps its frame rate.
+
 ## On-demand rendering
 
 Components inside `Canvas` can render a frame from any React event.
@@ -127,7 +155,7 @@ Each binding keeps the underlying vgpu call visible. React supplies context and 
 | `surface()` with an owned canvas | `<Canvas>` and `useCanvas()` |
 | `effect()` | `useShader()` |
 | `frame()` | `useFrame()` |
-| `frameLoop()` | `useFrameLoop()` |
+| `frameLoop()` | `useFrameLoop()`, one loop per GPU |
 
 ## Support
 

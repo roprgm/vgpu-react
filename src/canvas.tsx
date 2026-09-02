@@ -6,8 +6,7 @@ import {
   useRef,
 } from "react";
 import type { Surface, SurfaceOptions } from "vgpu";
-import { GpuProvider } from "./provider";
-import { useContextGpu } from "./use-gpu";
+import { GpuContext, GpuProvider } from "./provider";
 import { useSurface } from "./use-surface";
 
 const CanvasContext = createContext<Surface | null>(null);
@@ -50,7 +49,7 @@ function SurfaceCanvas({
 }
 
 export function Canvas(props: CanvasProps): ReactNode {
-  const gpu = useContextGpu();
+  const gpu = useContext(GpuContext);
   if (!gpu) {
     return (
       <GpuProvider>

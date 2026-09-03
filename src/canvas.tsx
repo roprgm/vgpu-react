@@ -1,7 +1,11 @@
+"use client";
+
 import {
   type ComponentProps,
   createContext,
   type ReactNode,
+  type RefObject,
+  Suspense,
   useContext,
   useRef,
 } from "react";
@@ -14,10 +18,28 @@ const CanvasContext = createContext<Surface | null>(null);
 type CanvasProps = SurfaceOptions &
   Omit<ComponentProps<"canvas">, keyof SurfaceOptions | "children" | "ref"> & {
     children?: ReactNode;
+    /** Rendered next to the canvas until the GPU and surface are ready. */
+    fallback?: ReactNode;
   };
 
-function SurfaceCanvas({
+type CanvasSurfaceProps = {
+  canvas: RefObject<HTMLCanvasElement | null>;
+  options: SurfaceOptions;
+  children?: ReactNode;
+};
+
+function CanvasSurface({
+  canvas,
+  options,
   children,
+}: CanvasSurfaceProps): ReactNode {
+  const target = useSurface(canvas, options);
+  return target && <CanvasContext value={target}>{children}</CanvasContext>;
+}
+
+export function Canvas({
+  children,
+  fallback,
   autoResize,
   clearColor,
   dpr,
@@ -29,35 +51,33 @@ function SurfaceCanvas({
   ...props
 }: CanvasProps): ReactNode {
   const canvas = useRef<HTMLCanvasElement>(null);
-  const target = useSurface(canvas, {
-    autoResize,
-    clearColor,
-    dpr,
-    size,
-    format,
-    alphaMode,
-    colorSpace,
-    label,
-  });
+  const hasProvider = useContext(GpuContext) !== null;
+  const surface = (
+    <Suspense fallback={fallback}>
+      <CanvasSurface
+        canvas={canvas}
+        options={{
+          autoResize,
+          clearColor,
+          dpr,
+          size,
+          format,
+          alphaMode,
+          colorSpace,
+          label,
+        }}
+      >
+        {children}
+      </CanvasSurface>
+    </Suspense>
+  );
 
   return (
     <>
       <canvas {...props} ref={canvas} />
-      {target && <CanvasContext value={target}>{children}</CanvasContext>}
+      {hasProvider ? surface : <GpuProvider>{surface}</GpuProvider>}
     </>
   );
-}
-
-export function Canvas(props: CanvasProps): ReactNode {
-  const gpu = useContext(GpuContext);
-  if (!gpu) {
-    return (
-      <GpuProvider>
-        <SurfaceCanvas {...props} />
-      </GpuProvider>
-    );
-  }
-  return <SurfaceCanvas {...props} />;
 }
 
 export function useCanvas(): Surface {

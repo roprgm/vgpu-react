@@ -1,4 +1,6 @@
-import { type DependencyList, useMemo } from "react";
+"use client";
+
+import { useMemo } from "react";
 import {
   type Effect,
   type EffectOptions,
@@ -8,18 +10,17 @@ import {
 import { useGpu } from "./use-gpu";
 
 /**
- * Fullscreen effect compiled from `source`, created once per gpu.
+ * Fullscreen effect compiled from `source`, created once per gpu and source.
  *
- * `options` are captured when the effect is created and applied again only when a value in
- * `deps` changes. With no `deps` they are captured once.
+ * `options` are read when the effect is created. Update uniforms with `effect.set()`; remount
+ * with `key` to change anything else.
  */
 export function useShader(
   source: string | ShaderSource,
   options?: EffectOptions,
-  deps: DependencyList = [],
 ): Effect {
   const gpu = useGpu();
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the caller's deps decide when options apply
-  return useMemo(() => effect(gpu, source, options), [gpu, source, ...deps]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: options are read once on creation
+  return useMemo(() => effect(gpu, source, options), [gpu, source]);
 }

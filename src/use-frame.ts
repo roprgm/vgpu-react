@@ -1,3 +1,5 @@
+"use client";
+
 import { useCallback, useLayoutEffect, useRef } from "react";
 import { type Frame, frame } from "vgpu";
 import { useGpu } from "./use-gpu";

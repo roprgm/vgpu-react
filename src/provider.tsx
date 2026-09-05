@@ -1,49 +1,133 @@
-import { createContext, type ReactNode, useEffect, useState } from "react";
-import { type Gpu, init } from "vgpu";
+"use client";
 
-export const GpuContext = createContext<Gpu | null>(null);
+import {
+  createContext,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import {
+  type FrameLoopCallback,
+  type FrameLoopHandle,
+  frameLoop,
+  type Gpu,
+  type InitOptions,
+  init,
+} from "vgpu";
+
+export type GpuContextValue = {
+  gpu: Gpu;
+  /** Adds `callback` to this gpu's single frame loop. Returns the unsubscribe. */
+  subscribe: (callback: FrameLoopCallback) => () => void;
+};
+
+export const GpuContext = createContext<GpuContextValue | null>(null);
 
 type GpuProviderProps = {
   children: ReactNode;
+  /** Rendered until the GPU is ready. */
+  fallback?: ReactNode;
+  /** Options for vgpu's `init()`, read once on mount. Remount with `key` to change them. */
+  options?: InitOptions;
+  /** Existing gpu, read once on mount. Whoever created it disposes it. */
+  gpu?: Gpu;
+  /** Frame rate cap of the shared frame loop. */
+  fps?: number;
 };
 
-export function GpuProvider({ children }: GpuProviderProps): ReactNode {
-  const [gpu, setGpu] = useState<Gpu | null>(null);
-  const [error, setError] = useState<unknown>(null);
+type GpuState =
+  | { status: "loading" }
+  | { status: "ready"; gpu: Gpu }
+  | { status: "error"; error: unknown };
+
+function createValue(gpu: Gpu, fps?: number): GpuContextValue {
+  const callbacks = new Set<FrameLoopCallback>();
+  let loop: FrameLoopHandle | undefined;
+
+  return {
+    gpu,
+    subscribe(callback) {
+      callbacks.add(callback);
+      // A throw would end vgpu's loop for every subscriber, so report it and keep going.
+      loop ??= frameLoop(
+        gpu,
+        (frame) => {
+          for (const cb of callbacks) {
+            try {
+              cb(frame);
+            } catch (error) {
+              reportError(error);
+            }
+          }
+        },
+        { fps },
+      );
+      return () => {
+        callbacks.delete(callback);
+        if (callbacks.size === 0) {
+          loop?.stop();
+          loop = undefined;
+        }
+      };
+    },
+  };
+}
+
+export function GpuProvider({
+  children,
+  fallback,
+  options,
+  gpu,
+  fps,
+}: GpuProviderProps): ReactNode {
+  const [initial] = useState({ options, gpu });
+  const [state, setState] = useState<GpuState>({ status: "loading" });
 
   useEffect(() => {
+    if (initial.gpu) {
+      setState({ status: "ready", gpu: initial.gpu });
+      return;
+    }
     let cancelled = false;
     let instance: Gpu | undefined;
 
-    init().then(
-      (created) => {
+    init(initial.options).then(
+      (gpu) => {
         if (cancelled) {
-          created.dispose();
+          gpu.dispose();
           return;
         }
-
-        instance = created;
-        setGpu(created);
+        instance = gpu;
+        setState({ status: "ready", gpu });
       },
-      (reason) => {
+      (error) => {
         if (!cancelled) {
-          setError(reason);
+          setState({ status: "error", error });
         }
       },
     );
 
     return () => {
       cancelled = true;
+      // Activity preserves state but reconnects effects. Never restore a disposed GPU.
+      setState({ status: "loading" });
       instance?.dispose();
     };
-  }, []);
+  }, [initial]);
 
-  if (error) {
-    throw error;
-  }
-  if (!gpu) {
+  const value = useMemo(() => {
+    if (state.status === "ready") {
+      return createValue(state.gpu, fps);
+    }
     return null;
-  }
+  }, [state, fps]);
 
-  return <GpuContext value={gpu}>{children}</GpuContext>;
+  if (state.status === "error") {
+    throw state.error;
+  }
+  if (!value) {
+    return fallback;
+  }
+  return <GpuContext value={value}>{children}</GpuContext>;
 }

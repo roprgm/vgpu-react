@@ -177,12 +177,6 @@ Resources returned by the hooks are native vgpu objects. Use `useGpu()` to acces
 
 `useShader()` memoizes a fullscreen effect for the component. Changing the GPU or shader source recreates it. Options apply when it is created. Update uniforms with `shader.set()`; remount with `key` to change other options.
 
-## Migrating from 0.2
-
-- Move `useFrameLoop(callback, { fps })` configuration to `<GpuProvider fps={...}>`. Callbacks under that provider now share one frame in subscription order.
-- `useShader(source, options, deps)` no longer accepts `deps`. Update uniforms through the returned effect's `set()` method. Change `source` or remount with `key` to recreate the effect with new options.
-- Surface options now follow changes: `clearColor` updates in place; other changes recreate the surface.
-
 ## Development
 
 Use Bun 1.3.2, matching CI:

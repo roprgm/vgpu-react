@@ -1,5 +1,8 @@
 # vgpu-react
 
+[![CI](https://github.com/roprgm/vgpu-react/actions/workflows/ci.yml/badge.svg)](https://github.com/roprgm/vgpu-react/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/vgpu-react)](https://www.npmjs.com/package/vgpu-react)
+
 React bindings for [vgpu](https://vgpu.sh).
 
 ## Install
@@ -179,6 +182,21 @@ Resources returned by the hooks are native vgpu objects. Use `useGpu()` to acces
 - Move `useFrameLoop(callback, { fps })` configuration to `<GpuProvider fps={...}>`. Callbacks under that provider now share one frame in subscription order.
 - `useShader(source, options, deps)` no longer accepts `deps`. Update uniforms through the returned effect's `set()` method. Change `source` or remount with `key` to recreate the effect with new options.
 - Surface options now follow changes: `clearColor` updates in place; other changes recreate the surface.
+
+## Development
+
+Use Bun 1.3.2, matching CI:
+
+```sh
+bun install --frozen-lockfile
+bun run check
+bun run test:coverage
+bun run build
+```
+
+GitHub Actions runs lint, type checks, tests with coverage, and the build on every pull request and push to `main`. Tests enforce at least 90% line and function coverage. Each [CI run](https://github.com/roprgm/vgpu-react/actions/workflows/ci.yml) includes test results and coverage in its summary, plus a downloadable `coverage` artifact containing the LCOV report.
+
+The integration tests use vgpu's mock adapter and a simulated DOM. They cover GPU ownership and initialization, React Activity, shared frame loops, surface updates, and server rendering. Native WebGPU rendering and browser hydration are not covered.
 
 ## Support
 

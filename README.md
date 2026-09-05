@@ -12,12 +12,16 @@ Requires React 19, vgpu 0.3, and a browser with WebGPU support.
 
 ## Example
 
-`Canvas` owns the HTML canvas and its vgpu target. Components inside it can access that target with `useCanvas()`. It accepts vgpu's `SurfaceOptions` alongside canvas attributes; changing `clearColor` updates the surface in place, changing any other option recreates it.
+`Canvas` owns the HTML canvas and its vgpu surface. Use `useCanvas()` to access that surface from a child component.
 
 ```tsx
 import { Canvas, useCanvas, useFrameLoop, useShader } from "vgpu-react";
 
-import gradient from "./gradient.wgsl";
+const gradient = `
+  @fragment fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
+    return vec4f(uv, 0.0, 1.0);
+  }
+`;
 
 function Gradient() {
   const target = useCanvas();
@@ -39,44 +43,26 @@ export function App() {
 }
 ```
 
-`Canvas` mounts its own `GpuProvider` when needed and reuses one if it already exists. The `<canvas>` element renders immediately; `Gradient` mounts once the GPU and its surface are ready, so there are no providers, refs, or nullable values in the common case.
+`Canvas` creates a GPU or reuses the nearest `GpuProvider`. It mounts `Gradient` once the GPU and surface are ready. The examples below reuse the same `gradient` shader.
 
 ## Composition
 
-Every `useFrameLoop` under one `GpuProvider` runs inside a single frame loop, in mount order, so components add passes to the same frame rather than racing separate loops. A component that draws over what an earlier one drew keeps it with `clear: false`.
+All `useFrameLoop` callbacks under one provider add passes to the same frame, in subscription order. To preserve an earlier pass, use `clear: false`:
 
 ```tsx
-function Overlay() {
-  const target = useCanvas();
-  const shader = useShader(overlay);
-
-  useFrameLoop((frame) => {
-    frame.pass({ target, clear: false }, shader);
-  });
-
-  return null;
-}
-
-export function App() {
-  return (
-    <Canvas>
-      <Gradient />
-      <Overlay />
-    </Canvas>
-  );
-}
+useFrameLoop((frame) => {
+  frame.pass({ target, clear: false }, shader);
+});
 ```
 
-The loop starts with the first subscriber and stops with the last. `<GpuProvider fps={30}>` caps its frame rate. An error thrown by one callback is reported with `reportError()` and doesn't stop the loop for the others.
+The loop starts with the first subscriber and stops with the last. Set `<GpuProvider fps={30}>` to cap its frame rate. Callback errors are reported with `reportError()`; the remaining callbacks still run.
 
 ## On-demand rendering
 
-Components inside `Canvas` can render a frame from any React event.
+`useFrame()` returns a function that renders one frame. Both frame hooks use the latest callback, without a dependency array.
 
 ```tsx
 import { useCanvas, useFrame, useShader } from "vgpu-react";
-
-import gradient from "./gradient.wgsl";
 
 function DrawGradient() {
   const target = useCanvas();
@@ -106,15 +92,19 @@ export function App() {
 }
 ```
 
-`options` goes to vgpu's `init()`. To use a GPU created elsewhere, for example with `initFromDevice()`, pass it as `gpu`; the provider then leaves disposal to whoever created it. Both are read once on mount, so inline objects are safe; a new device means everything under the provider is recreated, so to change them remount with `key`.
+Pass initialization options through `options`:
 
 ```tsx
 <GpuProvider options={{ requiredFeatures: ["timestamp-query"] }}>
+  <Canvas />
+</GpuProvider>
 ```
+
+To supply an existing GPU, use `<GpuProvider gpu={existingGpu}>`. The provider disposes GPUs it creates; an external GPU stays owned by its caller. `options` and `gpu` are read once on mount. Remount with `key` to change them.
 
 ## Loading and errors
 
-`GpuProvider` renders its children right away. Hooks suspend until the GPU is ready and throw if `init()` fails, so React's `Suspense` and error boundaries apply. `Canvas` brings its own `Suspense` boundary, so the `<canvas>` stays in the DOM while loading; its `fallback` renders next to it in the meantime. Components that use the hooks outside `Canvas` need a `Suspense` boundary above them, or React holds the app's initial render until the GPU resolves.
+`GpuProvider` renders its `fallback` until the GPU is ready, then mounts its children. A standalone `Canvas` renders its canvas immediately with `fallback` next to it. Under a shared provider, set `fallback` on `GpuProvider`; its canvases mount when the GPU is ready. Initialization failures reach the nearest error boundary.
 
 ```tsx
 <ErrorBoundary fallback={<p>WebGPU is not available.</p>}>
@@ -124,13 +114,17 @@ export function App() {
 </ErrorBoundary>
 ```
 
+`ErrorBoundary` and `Spinner` are application components. Hiding an owned GPU provider with React Activity disposes its GPU; showing it creates a new GPU and remounts its children.
+
 ## Server rendering
 
-The components are marked `"use client"`, so they can be imported from Server Components directly. On the server, the hooks throw instead of suspending; React puts the `<canvas>` and the `fallback` in the HTML and renders the GPU content on the client after hydration.
+The components include `"use client"` and can be imported from Server Components. Server HTML contains a standalone `Canvas`'s canvas and fallback, or a shared provider's fallback. GPU initialization runs after hydration.
 
 ## Bring your own canvas
 
-Inside `GpuProvider`, `useSurface()` maps a canvas ref to vgpu's `surface()`. It returns `Surface | null`, follows option changes the same way `Canvas` does, and disposes the surface on cleanup. `CustomRenderer` below suspends as a whole, so its `<canvas>` appears when the GPU is ready; to show it sooner, render it in a parent and pass the ref down.
+`useSurface()` creates a surface from a canvas ref and disposes it on cleanup. It returns `null` until the surface is ready.
+
+Both `Canvas` and `useSurface()` accept vgpu's `SurfaceOptions`. Changing `clearColor` updates the surface in place; changing another option recreates it. `Canvas` also accepts HTML canvas attributes.
 
 ```tsx
 import { useRef } from "react";
@@ -140,8 +134,6 @@ import {
   useShader,
   useSurface,
 } from "vgpu-react";
-
-import gradient from "./gradient.wgsl";
 
 function CustomRenderer() {
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -168,7 +160,7 @@ export function App() {
 
 ## Bindings
 
-Each binding keeps the underlying vgpu call visible. React supplies context and cleanup where needed.
+Resources returned by the hooks are native vgpu objects. Use `useGpu()` to access the GPU and call other vgpu functions directly.
 
 | vgpu | vgpu-react |
 | --- | --- |
@@ -176,9 +168,17 @@ Each binding keeps the underlying vgpu call visible. React supplies context and 
 | `initFromDevice()` | `<GpuProvider gpu={...}>` |
 | `surface()` | `useSurface()` |
 | `surface()` with an owned canvas | `<Canvas>` and `useCanvas()` |
-| `effect()` | `useShader()`, options read once; update uniforms with `set()` |
+| `effect()` | `useShader()` |
 | `frame()` | `useFrame()` |
-| `frameLoop()` | `useFrameLoop()`, one loop per GPU |
+| `frameLoop()` | `useFrameLoop()`, one loop per provider |
+
+`useShader()` memoizes a fullscreen effect for the component. Changing the GPU or shader source recreates it. Options apply when it is created. Update uniforms with `shader.set()`; remount with `key` to change other options.
+
+## Migrating from 0.2
+
+- Move `useFrameLoop(callback, { fps })` configuration to `<GpuProvider fps={...}>`. Callbacks under that provider now share one frame in subscription order.
+- `useShader(source, options, deps)` no longer accepts `deps`. Update uniforms through the returned effect's `set()` method. Change `source` or remount with `key` to recreate the effect with new options.
+- Surface options now follow changes: `clearColor` updates in place; other changes recreate the surface.
 
 ## Support
 

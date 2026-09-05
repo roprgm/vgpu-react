@@ -5,7 +5,6 @@ import {
   createContext,
   type ReactNode,
   type RefObject,
-  Suspense,
   useContext,
   useRef,
 } from "react";
@@ -53,29 +52,33 @@ export function Canvas({
   const canvas = useRef<HTMLCanvasElement>(null);
   const hasProvider = useContext(GpuContext) !== null;
   const surface = (
-    <Suspense fallback={fallback}>
-      <CanvasSurface
-        canvas={canvas}
-        options={{
-          autoResize,
-          clearColor,
-          dpr,
-          size,
-          format,
-          alphaMode,
-          colorSpace,
-          label,
-        }}
-      >
-        {children}
-      </CanvasSurface>
-    </Suspense>
+    <CanvasSurface
+      canvas={canvas}
+      options={{
+        autoResize,
+        clearColor,
+        dpr,
+        size,
+        format,
+        alphaMode,
+        colorSpace,
+        label,
+      }}
+    >
+      {children}
+    </CanvasSurface>
+  );
+
+  const content = hasProvider ? (
+    surface
+  ) : (
+    <GpuProvider fallback={fallback}>{surface}</GpuProvider>
   );
 
   return (
     <>
       <canvas {...props} ref={canvas} />
-      {hasProvider ? surface : <GpuProvider>{surface}</GpuProvider>}
+      {content}
     </>
   );
 }

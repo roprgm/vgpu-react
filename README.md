@@ -196,7 +196,7 @@ The integration tests use vgpu's mock adapter and a simulated DOM. They cover GP
 
 Update the version in `package.json` through a pull request and merge it after CI passes. Then publish a GitHub Release from `main` with the matching tag, such as `v0.3.0`. The publish workflow verifies the version and that the commit belongs to `main`, runs checks, tests with coverage, and the build, then publishes to npm. Prereleases are skipped.
 
-Publishing uses [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/) with automatic provenance. The npm package must trust GitHub owner `roprgm`, repository `vgpu-react`, and workflow `publish.yml`, with direct publishing allowed and no environment specified. No npm token secret is needed.
+Publishing uses [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/) with automatic provenance. The npm package trusts this repository's `publish.yml` workflow. No npm token secret is needed.
 
 ## Support
 

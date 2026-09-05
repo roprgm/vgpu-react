@@ -187,3 +187,68 @@ test("updates surfaces and shaders while event callbacks keep current values", a
     gpu.dispose();
   }
 });
+
+test.each(["Canvas", "useSurface"])(
+  "%s replaces surfaces before consumers draw in layout effects",
+  async (binding) => {
+    mockBrowser();
+    const gpu = await init();
+    const drawn: Surface[] = [];
+    function Draw({ target }: { target: Surface | null }) {
+      const draw = useFrame((frame) => {
+        if (target) {
+          frame.pass(target, () => {});
+          drawn.push(target);
+        }
+      });
+      useLayoutEffect(() => draw());
+      return null;
+    }
+    function CanvasDraw() {
+      return <Draw target={useCanvas()} />;
+    }
+    function CustomCanvas({ size }: { size: number }) {
+      const canvas = useRef<HTMLCanvasElement>(null);
+      const target = useSurface(canvas, { size: [size, size] });
+      return (
+        <>
+          <canvas ref={canvas} />
+          <Draw target={target} />
+        </>
+      );
+    }
+    function Renderer({ size }: { size: number }) {
+      if (binding === "useSurface") {
+        return <CustomCanvas size={size} />;
+      }
+      return (
+        <Canvas size={[size, size]}>
+          <CanvasDraw />
+        </Canvas>
+      );
+    }
+    const tree = (size: number) => (
+      <GpuProvider gpu={gpu}>
+        <Renderer size={size} />
+      </GpuProvider>
+    );
+    try {
+      const view = render(tree(8));
+      await act(async () => {});
+      const first = drawn.at(-1);
+      expect(first?.size).toEqual([8, 8]);
+      drawn.length = 0;
+      await act(async () => view.rerender(tree(16)));
+      expect(first?.disposed).toBe(true);
+      expect(drawn.length).toBeGreaterThan(0);
+      for (const target of drawn) {
+        expect(target).not.toBe(first);
+        expect(target.disposed).toBe(false);
+        expect(target.size).toEqual([16, 16]);
+      }
+      view.unmount();
+    } finally {
+      gpu.dispose();
+    }
+  },
+);

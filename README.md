@@ -192,6 +192,12 @@ GitHub Actions runs lint, type checks, tests with coverage, and the build on eve
 
 The integration tests use vgpu's mock adapter and a simulated DOM. They cover GPU ownership and initialization, React Activity, shared frame loops, surface updates, and server rendering. Native WebGPU rendering and browser hydration are not covered.
 
+## Publishing
+
+Update the version in `package.json` through a pull request and merge it after CI passes. Then publish a GitHub Release from `main` with the matching tag, such as `v0.3.0`. The publish workflow verifies the version and that the commit belongs to `main`, runs checks, tests with coverage, and the build, then publishes to npm. Prereleases are skipped.
+
+Publishing uses [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/) with automatic provenance. The npm package must trust GitHub owner `roprgm`, repository `vgpu-react`, and workflow `publish.yml`, with direct publishing allowed and no environment specified. No npm token secret is needed.
+
 ## Support
 
 Report bugs and request features through [GitHub Issues](https://github.com/roprgm/vgpu-react/issues).

@@ -14,7 +14,7 @@
     "check": "biome check . && tsc -p tsconfig.test.json",
     "format": "biome format --write .",
     "test": "bun test",
-    "prepublishOnly": "bun run check && bun run test && bun run build",
+    "prepublishOnly": "bun run check && bun run test:coverage && bun run build",
     "test:coverage": "bun test --coverage"
   },
   "exports": {
